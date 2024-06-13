@@ -6,7 +6,7 @@ from random import randint, random, uniform
 import faker
 
 
-uploaded_file = st.file_uploader('Input data', type='xls')
+uploaded_file = st.file_uploader('Load your past games here!', type='xls')
 
 if uploaded_file is not None:
     df = pd.read_excel(uploaded_file)
@@ -14,6 +14,9 @@ if uploaded_file is not None:
     df['month'] = df['Game Start'].dt.month
     df['year-month'] = df['Game Start'].dt.strftime('%Y-%m')
     df['amount'] = df['Travel'] + df['Accreditation'] + df['Extra'] + df['Earnings']
+    df['hour'] = df['Game Start'].dt.strftime('%H')
+    df['hour_int'] = df['hour'].astype(int)
+    df['qnt'] = 1
 else:
     st.header('EXEMPLE')
     list = []
@@ -95,7 +98,7 @@ else:
         else:
             max_day = 31
         random_day = randint(1, max_day)
-        game_start =  dt.datetime(2024, random_month, random_day)
+        game_start =  dt.datetime(randint(2023,2024), random_month, random_day)
         data = {
         'Sport': sport,
         'Coverage':	coverage,
@@ -125,57 +128,77 @@ else:
     df['year-month'] = df['Game Start'].dt.strftime('%Y-%m')
     df['amount'] = df['Travel'] + df['Accreditation'] + df['Extra'] + df['Earnings']
 
-st.header('This Month')
+scout = df['Scout'][0]
+st.header(scout)
+#st.subheader('This Month')
+
 
 #Metricas
 today = dt.datetime.today()
 month_actual = today.month
+year_actual = today.year
 
 #dfs mes atual e mes anterior
-df_month_actual = df[df['month'] == month_actual]
-df_month_last_month = df[df['month'] == month_actual - 1]
+df_month_actual = df[(df['month'] == month_actual) & (df['year'] == year_actual)]
+df_month_last = df[(df['month'] == month_actual - 1) & (df['year'] == year_actual)]
+df_year_actual = df[df['year'] == year_actual]
+df_year_last = df[df['year'] == year_actual - 1]
 
 #qnt_games
-qnt_games_actual = int(df_month_actual['ID'].count())
-qnt_games_last_month = int(df_month_last_month['ID'].count())
-diff_games = qnt_games_actual - qnt_games_last_month
+qnt_games_actual_month = int(df_month_actual['ID'].count())
+qnt_games_last_month = int(df_month_last['ID'].count())
+qnt_games_actual_year = int(df_year_actual['ID'].count())
+qnt_games_last_year = int(df_year_last['ID'].count())
+diff_games_month = qnt_games_actual_month - qnt_games_last_month
+diff_games_year = qnt_games_actual_year - qnt_games_last_year
 
 #amount
-amount_actual = float(df_month_actual['Earnings'].sum())
-amount_last_month = float(df_month_last_month['Earnings'].sum())
-diff_amount = amount_actual - amount_last_month
+amount_actual_month = float(df_month_actual['Earnings'].sum())
+amount_last_month = float(df_month_last['Earnings'].sum())
+amount_actual_year = float(df_year_actual['Earnings'].sum())
+amount_last_year = float(df_year_last['Earnings'].sum())
+diff_amount_month = amount_actual_month - amount_last_month
+diff_amount_year = amount_actual_year - amount_last_year
 
-col1, col2 = st.columns(2)
+col1, col2, col3, col4 = st.columns(4)
 with col1:
-    st.metric('Games', value = qnt_games_actual, delta = diff_games , help='vs Last Month')
+    st.metric('Games this Month', value = qnt_games_actual_month, delta = diff_games_month , help='vs Last Month')
 with col2:
-    st.metric('Earnings', value = f'{amount_actual:.2f}', delta = f'{diff_amount:.2f}' , help='vs Last Month')
+    st.metric('Earnings This Month', value = f'{amount_actual_month:.2f}', delta = f'{diff_amount_month:.2f}' , help='vs Last Month')
+with col3:
+    st.metric('Games this Year', value = qnt_games_actual_year, delta = diff_games_year , help='vs Last Year')
+with col4:
+    st.metric('Earnings this Year', value = f'{amount_actual_year:.2f}', delta = f'{diff_amount_year:.2f}' , help='vs Last Year')
 
 #Graficos de barras
 grouped_data = df[['year-month', 'ID', 'amount']].groupby('year-month')
 df_bars = grouped_data.agg({ 'ID': 'count', 'amount': 'sum'})
 df_bars = df_bars.reset_index()
 
-st.bar_chart(df_bars, x= 'year-month' , y='amount',use_container_width=True)
-st.line_chart(df_bars, x= 'year-month' , y='ID',use_container_width=True)
+fig_bar = px.bar(df_bars, x="year-month", y="amount", text_auto=True, title= 'Amount per Month')
+st.plotly_chart(fig_bar)
 
+df_line = df_bars.sort_values(by='year-month' ,ascending=False)
+fig_line = px.area(df_line, x='year-month' , y='ID',markers=True, title='Games per Month')
+st.plotly_chart(fig_line)
 
-st.header('All time')
 #
 grouped_data_stadium = df[['Venue', 'ID']].groupby('Venue')
 df_stadium = grouped_data_stadium.agg({ 'ID': 'count'})
+df_stadium = df_stadium.sort_values(by='ID', ascending=False).head(10)
 df_stadium = df_stadium.reset_index()
 
 #
 grouped_data_competition = df[['Competition', 'ID']].groupby('Competition')
 df_competition = grouped_data_competition.agg({ 'ID': 'count'})
+df_competition = df_competition.sort_values(by='ID', ascending=False).head(10)
 df_competition = df_competition.reset_index()
 
 #
 stadiums, competitions = st.columns(2)
 with stadiums:
     fig_stadium = px.bar(df_stadium.sort_values("ID"), x='ID',y='Venue', 
-                       title='Games per Stadium',
+                       title='Your Top 10 Stadium',
                         orientation='h',text_auto=True
                           )
     #fig_stadium.update_traces(textfont_size=12, textangle=0, cliponaxis=False)
@@ -184,9 +207,21 @@ with stadiums:
 
 with competitions:
     fig_competition = px.bar(df_competition.sort_values("ID"), x='ID',y='Competition', 
-                       title='Games per Competition',
+                       title='Your Top 10 Competition',
                         orientation='h',text_auto=True
                           )
-    #fig_competition.update_traces(textfont_size=12, textangle=0, cliponaxis=False)
 
     st.plotly_chart(fig_competition)
+
+#
+
+df['period'] = 'Unknown'
+df['period'] = df['period'].case_when(
+    [(df['hour_int'] < 12, 'Morning'),
+    (df['hour_int'] < 18, 'Afternoon'),
+    (df['hour_int'] < 24, 'Evening')]
+)
+
+fig_period = px.pie(df, values='qnt', names='period', title='Games per Period')
+st.plotly_chart(fig_period)
+
