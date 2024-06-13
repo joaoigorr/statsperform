@@ -172,10 +172,10 @@ with col4:
 
 #Graficos de barras
 grouped_data = df[['year-month', 'ID', 'amount']].groupby('year-month')
-df_bars = grouped_data.agg({ 'ID': 'count', 'amount': 'sum'})
+df_bars = grouped_data.agg({ 'ID': 'count', 'Earnings': 'sum'})
 df_bars = df_bars.reset_index()
 
-fig_bar = px.bar(df_bars, x="year-month", y="amount", text_auto=True, title= 'Amount per Month')
+fig_bar = px.bar(df_bars, x="year-month", y="Earnings", text_auto=True, title= 'Earnings per Month')
 st.plotly_chart(fig_bar)
 
 df_line = df_bars.sort_values(by='year-month' ,ascending=False)
