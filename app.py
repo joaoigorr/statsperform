@@ -119,7 +119,8 @@ else:
         'Accreditation': accreditation,
         'Extra': extra,
         'Earnings': uniform(39,59),
-        'Confirmed': confirmed
+        'Confirmed': confirmed,
+        'hour_int' : randint(6,23)
     }
         list.append(data)
     df = pd.DataFrame(list)
@@ -127,6 +128,7 @@ else:
     df['month'] = df['Game Start'].dt.month
     df['year-month'] = df['Game Start'].dt.strftime('%Y-%m')
     df['amount'] = df['Travel'] + df['Accreditation'] + df['Extra'] + df['Earnings']
+    df['qnt'] = 1
 
 scout = df['Scout'][0]
 st.header(scout)
@@ -224,4 +226,3 @@ df['period'] = df['period'].case_when(
 
 fig_period = px.pie(df, values='qnt', names='period', title='Games per Period')
 st.plotly_chart(fig_period)
-
