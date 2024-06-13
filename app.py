@@ -171,7 +171,7 @@ with col4:
     st.metric('Earnings this Year', value = f'{amount_actual_year:.2f}', delta = f'{diff_amount_year:.2f}' , help='vs Last Year')
 
 #Graficos de barras
-grouped_data = df[['year-month', 'ID', 'amount']].groupby('year-month')
+grouped_data = df[['year-month', 'ID', 'Earnings']].groupby('year-month')
 df_bars = grouped_data.agg({ 'ID': 'count', 'Earnings': 'sum'})
 df_bars = df_bars.reset_index()
 
