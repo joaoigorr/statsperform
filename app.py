@@ -6,7 +6,18 @@ from random import randint, random, uniform
 import faker
 
 
-uploaded_file = st.file_uploader('Load your past games here!', type='xls')
+uploaded_file = st.file_uploader('Load your confirmed past games here!', type='xls')
+
+days = [
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday'
+]
+
 
 if uploaded_file is not None:
     df = pd.read_excel(uploaded_file)
@@ -17,6 +28,16 @@ if uploaded_file is not None:
     df['hour'] = df['Game Start'].dt.strftime('%H')
     df['hour_int'] = df['hour'].astype(int)
     df['qnt'] = 1
+    df['idx_weekday'] = df['Game Start'].dt.weekday
+    df['weekday'] = df['idx_weekday'].case_when(
+    [(df['idx_weekday'] == 0, days[0]),
+    (df['idx_weekday'] == 1, days[1]),
+    (df['idx_weekday'] == 2, days[2]),
+    (df['idx_weekday'] == 3, days[3]),
+    (df['idx_weekday'] == 4, days[4]),
+    (df['idx_weekday'] == 5, days[5]),
+    (df['idx_weekday'] == 6, days[6])]
+)
 else:
     st.header('EXEMPLE')
     list = []
@@ -99,6 +120,7 @@ else:
             max_day = 31
         random_day = randint(1, max_day)
         game_start =  dt.datetime(randint(2023,2024), random_month, random_day)
+        weekday = game_start.weekday()
         data = {
         'Sport': sport,
         'Coverage':	coverage,
@@ -120,7 +142,9 @@ else:
         'Extra': extra,
         'Earnings': uniform(39,59),
         'Confirmed': confirmed,
-        'hour_int' : randint(6,23)
+        'hour_int' : randint(6,23),
+        'idx_weekday' : weekday,
+        'weekday' : days[weekday]
     }
         list.append(data)
     df = pd.DataFrame(list)
@@ -129,6 +153,7 @@ else:
     df['year-month'] = df['Game Start'].dt.strftime('%Y-%m')
     df['amount'] = df['Travel'] + df['Accreditation'] + df['Extra'] + df['Earnings']
     df['qnt'] = 1
+    
 
 scout = df['Scout'][0]
 st.header(scout)
@@ -177,11 +202,11 @@ grouped_data = df[['year-month', 'ID', 'Earnings']].groupby('year-month')
 df_bars = grouped_data.agg({ 'ID': 'count', 'Earnings': 'sum'})
 df_bars = df_bars.reset_index()
 
-fig_bar = px.bar(df_bars, x="year-month", y="Earnings", text_auto=True, title= 'Earnings per Month')
+fig_bar = px.bar(df_bars, x="year-month", y="Earnings", title= 'Earnings per Month', labels= {'Earnings' : '' , 'year-month' : ''})
 st.plotly_chart(fig_bar)
 
 df_line = df_bars.sort_values(by='year-month' ,ascending=False)
-fig_line = px.area(df_line, x='year-month' , y='ID',markers=True, title='Games per Month')
+fig_line = px.area(df_line, x='year-month' , y='ID',markers=True, title='Games per Month',text='ID', labels= {'ID' : '' , 'year-month' : ''})
 st.plotly_chart(fig_line)
 
 #
@@ -201,7 +226,7 @@ stadiums, competitions = st.columns(2)
 with stadiums:
     fig_stadium = px.bar(df_stadium.sort_values("ID"), x='ID',y='Venue', 
                        title='Your Top 10 Stadium',
-                        orientation='h',text_auto=True
+                        orientation='h',text_auto=True, labels= {'ID' : '' , 'Venue' : ''}
                           )
     #fig_stadium.update_traces(textfont_size=12, textangle=0, cliponaxis=False)
 
@@ -210,7 +235,7 @@ with stadiums:
 with competitions:
     fig_competition = px.bar(df_competition.sort_values("ID"), x='ID',y='Competition', 
                        title='Your Top 10 Competition',
-                        orientation='h',text_auto=True
+                        orientation='h',text_auto=True, labels= {'ID' : '' , 'Competition' : ''}
                           )
 
     st.plotly_chart(fig_competition)
@@ -225,4 +250,19 @@ df['period'] = df['period'].case_when(
 )
 
 fig_period = px.pie(df, values='qnt', names='period', title='Games per Period')
-st.plotly_chart(fig_period)
+
+
+fig_weekday = px.treemap(
+    df, 
+    path= ['weekday'], 
+    values='qnt',
+    title='Games per Day of Week'
+)
+
+fig_weekday.update_traces(marker=dict(cornerradius=5))
+
+period, weekday = st.columns(2)
+with period:
+    st.plotly_chart(fig_period)
+with weekday:
+    st.plotly_chart(fig_weekday)
